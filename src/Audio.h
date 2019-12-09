@@ -16,7 +16,11 @@
 
 //Constant defines
 #define AUDIO_FREQUENCY 48000
-#define AUDIO_SAMPLES	0x200
+#ifdef SWITCH
+	#define AUDIO_SAMPLES	0x1000
+#else
+	#define AUDIO_SAMPLES	0x200
+#endif
 #define AUDIO_CHANNELS	2
 
 //Sound ids

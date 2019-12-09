@@ -15,7 +15,14 @@
 		#include "SDL.h"
 	#endif
 	
-	#define BACKEND_INIT	SDL_Init(SDL_INIT_EVERYTHING) < 0
+	#define BACKEND_INIT	SDL_Init( \
+		SDL_INIT_TIMER | \
+		SDL_INIT_AUDIO | \
+		SDL_INIT_VIDEO | \
+		SDL_INIT_JOYSTICK | \
+		SDL_INIT_GAMECONTROLLER | \
+		SDL_INIT_EVENTS \
+	) < 0
 	#define BACKEND_ERROR	SDL_GetError()
 	#define BACKEND_QUIT	SDL_Quit()
 #endif
@@ -27,47 +34,15 @@
 // SWITCH DEBUGGING CODE
 // ============================================================================
 
-#ifdef ENABLE_NXLINK
-#define TRACE(fmt,...) ((void)0)
-static int s_nxlinkSock = -1;
-
-static void initNxLink()
-{
-    if (R_FAILED(socketInitializeDefault()))
-        return;
-
-    s_nxlinkSock = nxlinkStdio();
-    if (s_nxlinkSock >= 0)
-        TRACE("printf output now goes to nxlink server");
-    else
-        socketExit();
-}
-
-static void deinitNxLink()
-{
-    if (s_nxlinkSock >= 0)
-    {
-        close(s_nxlinkSock);
-        socketExit();
-        s_nxlinkSock = -1;
-    }
-}
-
-extern void userAppInit()
-{
-	initNxLink();
-}
-
-extern void userAppExit()
-{
-    deinitNxLink();
-}
-#endif
-
 int main(int argc, char *argv[])
 {
+	#ifdef ENABLE_NXLINK
+	socketInitializeDefault();
+	nxlinkStdio();
+	#endif
+
 	(void)argc; (void)argv;
-	
+
 	//Initialize our backend
 	LOG(("Initializing backend... "));
 	
@@ -95,6 +70,10 @@ int main(int argc, char *argv[])
 	BACKEND_QUIT;
 	LOG(("Success!\n"));
 	
+	#ifdef ENABLE_NXLINK
+    socketExit();
+	#endif
+
 	//Failed exit
 	if (error)
 		return -1;

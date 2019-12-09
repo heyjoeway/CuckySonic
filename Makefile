@@ -71,6 +71,10 @@ ifdef ENABLE_NXLINK
 	CXXFLAGS += -DENABLE_NXLINK
 endif
 
+ifdef DEBUG
+	CXXFLAGS += -DDEBUG
+endif
+
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
