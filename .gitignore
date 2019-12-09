@@ -8,3 +8,10 @@ build/*.zip
 build/*.7z
 build/debug
 build/release
+build/*.o
+build/*.d
+
+# Switch binaries
+*.elf
+*.nacp
+*.nro

@@ -1,5 +1,9 @@
 #include <string.h>
-#include "SDL_events.h"
+#ifdef SWITCH
+	#include <SDL_events.h>
+#else
+	#include "SDL_events.h"
+#endif
 #include "../Input.h"
 #include "../Audio.h"
 #include "../Log.h"

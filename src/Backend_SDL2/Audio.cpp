@@ -2,7 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "SDL_timer.h"
+#ifdef SWITCH
+	#include <SDL_timer.h>
+#else
+	#include "SDL_timer.h"
+#endif
 
 #include "../LinkedList.h"
 #include "../Audio.h"

@@ -3,8 +3,13 @@
 
 //Backend specific file handles
 #ifdef BACKEND_SDL2
-	#include "SDL_rwops.h"
-	#include "SDL_filesystem.h"
+	#ifdef SWITCH
+		#include <SDL_rwops.h>
+		#include <SDL_filesystem.h>
+	#else
+		#include "SDL_rwops.h"
+		#include "SDL_filesystem.h"
+	#endif
 	#define BACKEND_FILE	SDL_RWops
 #endif
 

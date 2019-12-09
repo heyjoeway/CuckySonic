@@ -5,8 +5,13 @@
 #define CONTROLLER_DEADZONE 0x200
 
 #ifdef BACKEND_SDL2
-	#include "SDL_gamecontroller.h"
-	#include "SDL_events.h"
+	#ifdef SWITCH
+		#include <SDL_gamecontroller.h>
+		#include <SDL_events.h>
+	#else
+		#include "SDL_gamecontroller.h"
+		#include "SDL_events.h"
+	#endif
 
 	struct BUTTONBIND
 	{

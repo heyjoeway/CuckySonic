@@ -1,6 +1,10 @@
 #pragma once
 #ifdef BACKEND_SDL2
-	#include "SDL_endian.h"
+	#ifdef SWITCH
+		#include <SDL_endian.h>
+	#else
+		#include "SDL_endian.h"
+	#endif
 	#if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
 		#define CPU_BIGENDIAN
 	#else

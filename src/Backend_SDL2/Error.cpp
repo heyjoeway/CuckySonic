@@ -1,7 +1,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "SDL_messagebox.h"
+
+#ifdef SWITCH
+	#include <SDL_messagebox.h>
+#else
+	#include "SDL_messagebox.h"
+#endif
 #include "../Audio.h"
 
 bool Error(const char *error)

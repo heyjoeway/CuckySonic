@@ -468,7 +468,9 @@ extern "C" {
         #define MA_WIN32_DESKTOP
     #endif
 #else
-    #define MA_POSIX
+    #ifndef SWITCH
+        #define MA_POSIX
+    #endif
     #include <pthread.h>    /* Unfortunate #include, but needed for pthread_t, pthread_mutex_t and pthread_cond_t types. */
 
     #ifdef __unix__

@@ -8,7 +8,12 @@
 
 //Backend usage
 #ifdef BACKEND_SDL2
-	#include "SDL.h"
+	#ifdef SWITCH
+		#include <switch.h>
+		#include <SDL.h>
+	#else
+		#include "SDL.h"
+	#endif
 	
 	#define BACKEND_INIT	SDL_Init(SDL_INIT_EVERYTHING) < 0
 	#define BACKEND_ERROR	SDL_GetError()
@@ -16,6 +21,48 @@
 #endif
 
 #include "MathUtil.h"
+
+
+// ============================================================================
+// SWITCH DEBUGGING CODE
+// ============================================================================
+
+#ifdef ENABLE_NXLINK
+#define TRACE(fmt,...) ((void)0)
+static int s_nxlinkSock = -1;
+
+static void initNxLink()
+{
+    if (R_FAILED(socketInitializeDefault()))
+        return;
+
+    s_nxlinkSock = nxlinkStdio();
+    if (s_nxlinkSock >= 0)
+        TRACE("printf output now goes to nxlink server");
+    else
+        socketExit();
+}
+
+static void deinitNxLink()
+{
+    if (s_nxlinkSock >= 0)
+    {
+        close(s_nxlinkSock);
+        socketExit();
+        s_nxlinkSock = -1;
+    }
+}
+
+extern void userAppInit()
+{
+	initNxLink();
+}
+
+extern void userAppExit()
+{
+    deinitNxLink();
+}
+#endif
 
 int main(int argc, char *argv[])
 {

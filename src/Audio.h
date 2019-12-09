@@ -2,7 +2,11 @@
 #include <stdint.h>
 
 #ifdef BACKEND_SDL2
-	#include "SDL_audio.h"
+	#ifdef SWITCH
+		#include <SDL_audio.h>
+	#else
+		#include "SDL_audio.h"
+	#endif
 	
 	//Audio lock / unlock access
 	extern SDL_AudioDeviceID gAudioDevice;
