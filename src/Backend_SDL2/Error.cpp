@@ -2,11 +2,7 @@
 #include <string.h>
 #include <time.h>
 
-#ifdef SWITCH
-	#include <SDL_messagebox.h>
-#else
-	#include "SDL_messagebox.h"
-#endif
+#include "SDL_messagebox.h"
 #include "../Audio.h"
 
 bool Error(const char *error)

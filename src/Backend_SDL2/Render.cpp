@@ -2,13 +2,8 @@
 #include <string.h>
 #include <cmath>
 
-#ifdef SWITCH
-	#include <SDL_render.h>
-	#include <SDL_timer.h>
-#else
-	#include "SDL_render.h"
-	#include "SDL_timer.h"
-#endif
+#include "SDL_render.h"
+#include "SDL_timer.h"
 
 #include "../CommonMacros.h"
 #include "../Log.h"

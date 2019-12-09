@@ -3,13 +3,9 @@
 #include <deque>
 
 #ifdef BACKEND_SDL2
-	#ifdef SWITCH
-		#include <SDL_render.h>
-		#include <SDL_pixels.h>
-	#else
-		#include "SDL_render.h"
-		#include "SDL_pixels.h"
-	#endif
+	#include "SDL_render.h"
+	#include "SDL_pixels.h"
+
 	#define BACKEND_TEXTURE		SDL_Texture
 	#define BACKEND_PIXELFORMAT	SDL_PixelFormat
 #endif

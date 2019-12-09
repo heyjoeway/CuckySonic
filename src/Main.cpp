@@ -6,14 +6,13 @@
 #include "Error.h"
 #include "Log.h"
 
+#ifdef SWITCH
+	#include <switch.h>
+#endif
+
 //Backend usage
 #ifdef BACKEND_SDL2
-	#ifdef SWITCH
-		#include <switch.h>
-		#include <SDL.h>
-	#else
-		#include "SDL.h"
-	#endif
+	#include "SDL.h"
 	
 	#define BACKEND_INIT	SDL_Init( \
 		SDL_INIT_TIMER | \
