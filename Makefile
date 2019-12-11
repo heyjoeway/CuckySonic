@@ -10,8 +10,30 @@ endif
 
 FILENAME ?= $(FILENAME_DEF)
 
+PKGCONFIG = pkg-config
+
 ifeq ($(OS), Windows_NT)
 	WINDOWS ?= 1
+endif
+
+ifeq ($(SWITCH), 1)
+	ifeq ($(strip $(DEVKITPRO)),)
+		$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
+	endif
+
+	WINDOWS = 0
+
+	include $(DEVKITPRO)/libnx/switch_rules
+	LIBNX:=$(DEVKITPRO)/libnx
+	INCLUDE=-I$(LIBNX)/include -I$(PORTLIBS)/include/SDL2 -I$(PORTLIBS)/include
+
+	CXXFLAGS += -march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE -DSWITCH $(INCLUDE)
+	LIBS += -specs=$(DEVKITPRO)/libnx/switch.specs -L$(LIBNX)/lib -lnx -lm
+	PKGCONFIG = $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
+
+	ifdef ENABLE_NXLINK
+		CXXFLAGS += -DENABLE_NXLINK
+	endif
 endif
 
 ifeq ($(WINDOWS), 1)
@@ -27,13 +49,13 @@ BACKEND ?= SDL2
 
 #Backend flags and libraries
 ifeq ($(BACKEND), SDL2)
-	CXXFLAGS += `pkg-config --cflags sdl2` -DBACKEND_SDL2
+	CXXFLAGS += `$(PKGCONFIG) --cflags sdl2` -DBACKEND_SDL2
 
 	ifeq ($(STATIC), 1)
 		LDFLAGS += -static
-		LIBS += `pkg-config --libs sdl2 --static`
+		LIBS += `$(PKGCONFIG) --libs sdl2 --static`
 	else
-		LIBS += `pkg-config --libs sdl2`
+		LIBS += `$(PKGCONFIG) --libs sdl2`
 	endif
 endif
 
@@ -111,7 +133,16 @@ ifeq ($(WINDOWS), 1)
 endif
 
 #Compilation code
+ifeq ($(SWITCH), 1)
+all: build/$(FILENAME).nro
+
+build/$(FILENAME).nro: build/$(FILENAME)
+	@elf2nro $< $@ $(NROFLAGS)
+	@echo built ... $(notdir $@)
+
+else
 all: build/$(FILENAME)
+endif
 
 build/$(FILENAME): $(OBJECTS)
 	@mkdir -p $(@D)
