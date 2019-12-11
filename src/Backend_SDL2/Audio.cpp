@@ -218,7 +218,6 @@ MUSIC::MUSIC(const char *name, int initialPosition, float initialVolume)
 	//Clear memory
 	LOG(("Loading music file from %s... ", name));
 	memset(this, 0, sizeof(MUSIC));
-	return;
 	
 	//Get our paths
 	source = name;
@@ -284,8 +283,8 @@ MUSIC::MUSIC(const char *name, int initialPosition, float initialVolume)
 	CloseFile(metafp);
 	
 	//Initialize the resampler
-	ma_pcm_converter_config config = ma_pcm_converter_config_init(ma_format_f32, channels, frequency, ma_format_f32, AUDIO_CHANNELS, AUDIO_FREQUENCY, MusicReadSamples, this);
-	ma_pcm_converter_init(&config, &resampler);
+	//ma_pcm_converter_config config = ma_pcm_converter_config_init(ma_format_f32, channels, frequency, ma_format_f32, AUDIO_CHANNELS, AUDIO_FREQUENCY, MusicReadSamples, this);
+	//ma_pcm_converter_init(&config, &resampler);
 	
 	//Seek to given position and use given volume
 	if (stb_vorbis_seek_frame(file, initialPosition) < 0)
@@ -300,7 +299,6 @@ MUSIC::MUSIC(const char *name, int initialPosition, float initialVolume)
 
 MUSIC::~MUSIC()
 {
-	return;
 	//Close our loaded file and free mix buffer
 	if (file != nullptr)
 		stb_vorbis_close(file);
@@ -320,8 +318,6 @@ MUSIC::~MUSIC()
 //Playback functions
 void MUSIC::PlayAtPosition(int setPosition)
 {
-	return;
-	
 	//Play at the given position
 	playing = true;
 	
@@ -333,8 +329,6 @@ void MUSIC::PlayAtPosition(int setPosition)
 //Functions for reading from the music file
 void MUSIC::Loop()
 {
-	return;
-	
 	//Seek back to definition->loopStart
 	if (stb_vorbis_seek_frame(file, loopStart) < 0)
 		stb_vorbis_seek_start(file);
@@ -342,8 +336,6 @@ void MUSIC::Loop()
 
 ma_uint32 MUSIC::ReadSamplesToBuffer(float *buffer, int samples)
 {
-	return 0;
-	
 	//Read the given amount of samples
 	float *bufferPointer = buffer;
 	int samplesRead = 0;
@@ -374,8 +366,6 @@ ma_uint32 MUSIC::ReadSamplesToBuffer(float *buffer, int samples)
 //Used for mixing into the audio buffer
 void MUSIC::ReadAndMix(float *stream, int frames)
 {
-	return;
-	
 	//Don't mix if not playing
 	if (!playing)
 		return;
@@ -385,7 +375,8 @@ void MUSIC::ReadAndMix(float *stream, int frames)
 		mixBuffer = new float[frames * AUDIO_CHANNELS];
 	
 	//Read the samples and convert to native format using miniaudio
-	ma_pcm_converter_read(&resampler, mixBuffer, frames);
+	ReadSamplesToBuffer(mixBuffer, frames * channels);
+	//ma_pcm_converter_read(&resampler, mixBuffer, frames);
 	
 	//Mix to buffer, applying volume
 	float *buffer = stream;
