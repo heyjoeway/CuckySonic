@@ -1,229 +1,137 @@
-#---------------------------------------------------------------------------------
-.SUFFIXES:
-#---------------------------------------------------------------------------------
-
-ifeq ($(strip $(DEVKITPRO)),)
-$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
-endif
-
-TOPDIR ?= $(CURDIR)
-include $(DEVKITPRO)/libnx/switch_rules
-
-#---------------------------------------------------------------------------------
-# TARGET is the name of the output
-# BUILD is the directory where object files & intermediate files will be placed
-# SOURCES is a list of directories containing source code
-# DATA is a list of directories containing data files
-# INCLUDES is a list of directories containing header files
-# ROMFS is the directory containing data to be added to RomFS, relative to the Makefile (Optional)
-#
-# NO_ICON: if set to anything, do not use icon.
-# NO_NACP: if set to anything, no .nacp file is generated.
-# APP_TITLE is the name of the app stored in the .nacp file (Optional)
-# APP_AUTHOR is the author of the app stored in the .nacp file (Optional)
-# APP_VERSION is the version of the app stored in the .nacp file (Optional)
-# APP_TITLEID is the titleID of the app stored in the .nacp file (Optional)
-# ICON is the filename of the icon (.jpg), relative to the project folder.
-#   If not set, it attempts to use one of the following (in this order):
-#     - <Project name>.jpg
-#     - icon.jpg
-#     - <libnx folder>/default_icon.jpg
-#
-# CONFIG_JSON is the filename of the NPDM config file (.json), relative to the project folder.
-#   If not set, it attempts to use one of the following (in this order):
-#     - <Project name>.json
-#     - config.json
-#   If a JSON file is provided or autodetected, an ExeFS PFS0 (.nsp) is built instead
-#   of a homebrew executable (.nro). This is intended to be used for sysmodules.
-#   NACP building is skipped as well.
-#---------------------------------------------------------------------------------
-TARGET		:=	$(notdir $(CURDIR))
-BUILD		:=	obj
-SOURCES		:=	src src/Backend_SDL2 src/LevelSpecific src/Objects
-DATA		:=	data
-INCLUDES	:=	include
-#ROMFS	:=	romfs
-
-#---------------------------------------------------------------------------------
-# options for code generation
-#---------------------------------------------------------------------------------
-ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
-
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
-			$(ARCH) $(DEFINES)
-
-CFLAGS	+=	-D__SWITCH__ $(INCLUDE) `sdl2-config --cflags` -DBACKEND_SDL2 -DSWITCH
-
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
-
-ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-
-LIBS	:=	`sdl2-config --libs`
-
-#---------------------------------------------------------------------------------
-# list of directories containing libraries, this must be the top level containing
-# include and lib
-#---------------------------------------------------------------------------------
-LIBDIRS	:= $(PORTLIBS) $(LIBNX)
-
-ifdef ENABLE_NXLINK
-	CXXFLAGS += -DENABLE_NXLINK
-endif
-
-ifdef DEBUG
-	CXXFLAGS += -DDEBUG
-endif
-
-#---------------------------------------------------------------------------------
-# no real need to edit anything past this point unless you need to add additional
-# rules for different file extensions
-#---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
-#---------------------------------------------------------------------------------
-
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
-export TOPDIR	:=	$(CURDIR)
-
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
-
-export DEPSDIR	:=	$(CURDIR)/$(BUILD)
-
-CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
-
-#---------------------------------------------------------------------------------
-# use CXX for linking C++ projects, CC for standard C
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(CPPFILES)),)
-#---------------------------------------------------------------------------------
-	export LD	:=	$(CC)
-#---------------------------------------------------------------------------------
+#Release and debug
+ifeq ($(RELEASE), 1)
+	CXXFLAGS = -O3 -flto -Wall -Wextra -pedantic
+	LDFLAGS = -s
+	FILENAME_DEF = release
 else
-#---------------------------------------------------------------------------------
-	export LD	:=	$(CXX)
-#---------------------------------------------------------------------------------
+	CXXFLAGS = -Og -ggdb3 -Wall -Wextra -pedantic -DDEBUG
+	FILENAME_DEF = debug
 endif
-#---------------------------------------------------------------------------------
 
-export OFILES_BIN	:=	$(addsuffix .o,$(BINFILES))
-export OFILES_SRC	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
-export OFILES 	:=	$(OFILES_BIN) $(OFILES_SRC)
-export HFILES_BIN	:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
+FILENAME ?= $(FILENAME_DEF)
 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-			-I$(CURDIR)/$(BUILD)
+ifeq ($(OS), Windows_NT)
+	WINDOWS ?= 1
+endif
 
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
-
-ifeq ($(strip $(CONFIG_JSON)),)
-	jsons := $(wildcard *.json)
-	ifneq (,$(findstring $(TARGET).json,$(jsons)))
-		export APP_JSON := $(TOPDIR)/$(TARGET).json
-	else
-		ifneq (,$(findstring config.json,$(jsons)))
-			export APP_JSON := $(TOPDIR)/config.json
-		endif
+ifeq ($(WINDOWS), 1)
+	CXXFLAGS += -DWINDOWS
+	
+	ifneq ($(RELEASE), 1)
+		CXXFLAGS += -mconsole
 	endif
-else
-	export APP_JSON := $(TOPDIR)/$(CONFIG_JSON)
 endif
 
-ifeq ($(strip $(ICON)),)
-	icons := $(wildcard *.jpg)
-	ifneq (,$(findstring $(TARGET).jpg,$(icons)))
-		export APP_ICON := $(TOPDIR)/$(TARGET).jpg
+#Use SDL2 as the default backend if one wasn't explicitly chosen
+BACKEND ?= SDL2
+
+#Backend flags and libraries
+ifeq ($(BACKEND), SDL2)
+	CXXFLAGS += `pkg-config --cflags sdl2` -DBACKEND_SDL2
+
+	ifeq ($(STATIC), 1)
+		LDFLAGS += -static
+		LIBS += `pkg-config --libs sdl2 --static`
 	else
-		ifneq (,$(findstring icon.jpg,$(icons)))
-			export APP_ICON := $(TOPDIR)/icon.jpg
-		endif
+		LIBS += `pkg-config --libs sdl2`
 	endif
-else
-	export APP_ICON := $(TOPDIR)/$(ICON)
 endif
 
-ifeq ($(strip $(NO_ICON)),)
-	export NROFLAGS += --icon=$(APP_ICON)
+#Other CXX flags
+CXXFLAGS += -faligned-new -MMD -MP -MF $@.d
+
+#Sources to compile
+SOURCES = \
+	Main \
+	MathUtil \
+	Fade \
+	Mappings \
+	Level \
+	LevelCollision \
+	SpecialStage \
+	Background \
+	Game \
+	GM_Splash \
+	GM_Title \
+	GM_Game \
+	GM_SpecialStage \
+	Player \
+	Object \
+	Camera \
+	TitleCard \
+	Hud \
+	LevelSpecific/GHZ \
+	LevelSpecific/EHZ \
+	Objects/PathSwitcher \
+	Objects/Ring \
+	Objects/BouncingRing \
+	Objects/AttractRing \
+	Objects/Monitor \
+	Objects/Spring \
+	Objects/Explosion \
+	Objects/Bridge \
+	Objects/Goalpost \
+	Objects/Spiral \
+	Objects/Sonic1Scenery \
+	Objects/Motobug \
+	Objects/Chopper \
+	Objects/Crabmeat \
+	Objects/BuzzBomber \
+	Objects/Newtron \
+	Objects/GHZWaterfallSound \
+	Objects/GHZPlatform \
+	Objects/GHZLedge \
+	Objects/GHZSwingingPlatform \
+	Objects/GHZSpikes \
+	Objects/GHZEdgeWall \
+	Objects/GHZSmashableWall \
+	Objects/PurpleRock \
+	Objects/Minecart \
+	Audio_stb_vorbis \
+	Audio_miniaudio
+
+#Backend source files
+ifeq ($(BACKEND), SDL2)
+	SOURCES += \
+		Backend_SDL2/Error \
+		Backend_SDL2/Filesystem \
+		Backend_SDL2/Render \
+		Backend_SDL2/Event \
+		Backend_SDL2/Input \
+		Backend_SDL2/Audio
 endif
 
-ifeq ($(strip $(NO_NACP)),)
-	export NROFLAGS += --nacp=$(CURDIR)/$(TARGET).nacp
+#What to compile
+OBJECTS = $(addprefix obj/$(FILENAME)/, $(addsuffix .o, $(SOURCES)))
+DEPENDENCIES = $(addprefix obj/$(FILENAME)/, $(addsuffix .o.d, $(SOURCES)))
+
+#If compiling a windows build, add the Windows icon object into our executable
+ifeq ($(WINDOWS), 1)
+	OBJECTS += obj/$(FILENAME)/WindowsIcon.o
 endif
 
-ifneq ($(APP_TITLEID),)
-	export NACPFLAGS += --titleid=$(APP_TITLEID)
-endif
+#Compilation code
+all: build/$(FILENAME)
 
-ifneq ($(ROMFS),)
-	export NROFLAGS += --romfsdir=$(CURDIR)/$(ROMFS)
-endif
+build/$(FILENAME): $(OBJECTS)
+	@mkdir -p $(@D)
+	@echo Linking...
+	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo Finished linking $@
 
-.PHONY: $(BUILD) clean all
+obj/$(FILENAME)/%.o: src/%.cpp
+	@mkdir -p $(@D)
+	@echo Compiling $<
+	@$(CXX) $(CXXFLAGS) $< -o $@ -c
+	@echo Compiled!
+	
+include $(wildcard $(DEPENDENCIES))
 
-#---------------------------------------------------------------------------------
-all: $(BUILD)
+#Compile the Windows icon file into an object
+obj/$(FILENAME)/WindowsIcon.o: res/icon.rc res/icon.ico
+	@mkdir -p $(@D)
+	@windres $< $@
 
-$(BUILD):
-	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-
-#---------------------------------------------------------------------------------
+#Remove all our compiled objects
 clean:
-	@echo clean ...
-ifeq ($(strip $(APP_JSON)),)
-	@rm -fr $(BUILD) $(TARGET).nro $(TARGET).nacp $(TARGET).elf
-else
-	@rm -fr $(BUILD) $(TARGET).nsp $(TARGET).nso $(TARGET).npdm $(TARGET).elf
-endif
-
-
-#---------------------------------------------------------------------------------
-else
-.PHONY:	all
-
-DEPENDS	:=	$(OFILES:.o=.d)
-
-#---------------------------------------------------------------------------------
-# main targets
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(APP_JSON)),)
-
-all	:	$(OUTPUT).nro
-
-ifeq ($(strip $(NO_NACP)),)
-$(OUTPUT).nro	:	$(OUTPUT).elf $(OUTPUT).nacp
-else
-$(OUTPUT).nro	:	$(OUTPUT).elf
-endif
-
-else
-
-all	:	$(OUTPUT).nsp
-
-$(OUTPUT).nsp	:	$(OUTPUT).nso $(OUTPUT).npdm
-
-$(OUTPUT).nso	:	$(OUTPUT).elf
-
-endif
-
-$(OUTPUT).elf	:	$(OFILES)
-
-$(OFILES_SRC)	: $(HFILES_BIN)
-
-#---------------------------------------------------------------------------------
-# you need a rule like this for each extension you use as binary data
-#---------------------------------------------------------------------------------
-%.bin.o	%_bin.h :	%.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-
--include $(DEPENDS)
-
-#---------------------------------------------------------------------------------------
-endif
-#---------------------------------------------------------------------------------------
+	@rm -rf obj
