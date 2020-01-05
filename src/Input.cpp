@@ -62,6 +62,10 @@ const BUTTONBINDS defaultBinds[CONTROLLERS] = {
 //Controller update functions
 #include <math.h>
 
+#ifndef EMSCRIPTEN
+#define atan2 std::atan2
+#endif
+
 #define AXIS_DEADZONE	0x180
 #define DIRRAD			1.01229 //About 58 degrees
 
@@ -75,7 +79,7 @@ CONTROLMASK CONTROLLER::GetAxisState(int16_t chkAxisX, int16_t chkAxisY)
 		return state;
 	
 	//Get our direction (converted to fixed point) and primary directions
-	double angle = std::atan2(chkAxisY, chkAxisX);
+	double angle = atan2(chkAxisY, chkAxisX);
 	
 	//Right
 	if (angle >= -DIRRAD && angle <= DIRRAD)

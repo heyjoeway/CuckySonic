@@ -10,79 +10,80 @@
 
 #define SPLASH_TIME 120
 
-bool GM_Splash(bool *bError)
-{
-	//Load our textures
-	TEXTURE splashTexture("data/Splash.bmp");
-	if (splashTexture.fail != nullptr)
-		return (*bError = Error(splashTexture.fail));
+TEXTURE gSplashTexture("data/Splash.bmp");
+bool gSplashdidPlayJingle = false;
+unsigned int gSplashFrame = 0, gSplashAnimFrame = 0;
+
+bool GM_Splash_Loop(bool *bError) {
+	//Handle events
+	HandleEvents();
 	
-	FillPaletteWhite(splashTexture.loadedPalette);
+	//Handle fading
+	if (gController[0].press.a || gController[0].press.b || gController[0].press.c || gController[0].press.start)
+		gSplashFrame = mmax(gSplashFrame, SPLASH_TIME);
 	
-	//Our loop
-	bool bExit = false;
-	
-	bool didPlayJingle = false;
-	unsigned int frame = 0, animFrame = 0;
-	
-	while (!(bExit || *bError))
+	bool bBreak = false;
+	if (gSplashFrame < SPLASH_TIME)
 	{
-		//Handle events
-		bExit = HandleEvents();
-		
-		//Handle fading
-		if (gController[0].press.a || gController[0].press.b || gController[0].press.c || gController[0].press.start)
-			frame = mmax(frame, SPLASH_TIME);
-		
-		bool bBreak = false;
-		if (frame < SPLASH_TIME)
+		//Fade in and play splash jingle once done
+		if (PaletteFadeInFromWhite(gSplashTexture.loadedPalette))
 		{
-			//Fade in and play splash jingle once done
-			if (PaletteFadeInFromWhite(splashTexture.loadedPalette))
-			{
-				if (!didPlayJingle)
-					PlaySound(SOUNDID_SPLASHJINGLE);
-				didPlayJingle = true;
-			}
+			if (!gSplashdidPlayJingle)
+				PlaySound(SOUNDID_SPLASHJINGLE);
+			gSplashdidPlayJingle = true;
 		}
-		else if (PaletteFadeOutToBlack(splashTexture.loadedPalette))
-			bBreak = true;
+	}
+	else if (PaletteFadeOutToBlack(gSplashTexture.loadedPalette))
+		bBreak = true;
+	
+	//Draw splash
+	RECT strip = {0, 0, gSplashTexture.width, 1};
+	
+	for (int y = 0; y < gRenderSpec.height; y++)
+	{
+		//Get our distortion
+		int xOff;
+		int inY = y - (gRenderSpec.height - gSplashTexture.height) / 2;
 		
-		//Draw splash
-		RECT strip = {0, 0, splashTexture.width, 1};
+		xOff = GetSin((y) + (gSplashAnimFrame * 2)) * 15 / 0x100;
+		inY += GetCos((y) + (gSplashAnimFrame * 4)) * 4 / 0x100;
 		
-		for (int y = 0; y < gRenderSpec.height; y++)
+		//Draw strip
+		if (inY >= 0 && inY < gSplashTexture.height)
 		{
-			//Get our distortion
-			int xOff;
-			int inY = y - (gRenderSpec.height - splashTexture.height) / 2;
-			
-			xOff = GetSin((y) + (animFrame * 2)) * 15 / 0x100;
-			inY += GetCos((y) + (animFrame * 4)) * 4 / 0x100;
-			
-			//Draw strip
-			if (inY >= 0 && inY < splashTexture.height)
-			{
-				strip.y = inY;
-				gSoftwareBuffer->DrawTexture(&splashTexture, splashTexture.loadedPalette, &strip, 0, (gRenderSpec.width - splashTexture.width) / 2 + xOff, y, false, false);
-			}
+			strip.y = inY;
+			gSoftwareBuffer->DrawTexture(&gSplashTexture, gSplashTexture.loadedPalette, &strip, 0, (gRenderSpec.width - gSplashTexture.width) / 2 + xOff, y, false, false);
 		}
-		
-		//Render our software buffer to the screen (using the first colour of our splash texture, should be white)
-		if ((*bError = gSoftwareBuffer->RenderToScreen(&splashTexture.loadedPalette->colour[0])) == true)
-			break;
-		
-		//Exit if faded out
-		if (bBreak)
-			break;
-		
-		//Increment frame counter
-		if (!(gController[0].held.left && gController[0].held.right))
-			frame++;
-		animFrame++;
 	}
 	
-	//Go to title
-	gGameMode = GAMEMODE_TITLE;
-	return bExit;
+	//Render our software buffer to the screen (using the first colour of our splash texture, should be white)
+	if ((*bError = gSoftwareBuffer->RenderToScreen(&gSplashTexture.loadedPalette->colour[0])) == true)
+		bBreak = true;
+	
+	//Exit if faded out
+	if (bBreak)
+		gGameMode = GAMEMODE_TITLE;
+	
+	//Increment frame counter
+	if (!(gController[0].held.left && gController[0].held.right))
+		gSplashFrame++;
+	gSplashAnimFrame++;
+
+	return 0;
+}
+
+bool GM_Splash_Init(bool *bError)
+{
+	//Load our textures
+	// gSplashTexture = TEXTURE("data/Splash.bmp");
+	if (gSplashTexture.fail != nullptr)
+		return (*bError = Error(gSplashTexture.fail));
+	
+	FillPaletteWhite(gSplashTexture.loadedPalette);
+	
+	gSplashdidPlayJingle = false;
+	gSplashFrame = 0;
+	gSplashAnimFrame = 0;
+	
+	return 0;
 }

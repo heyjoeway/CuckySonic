@@ -61,6 +61,10 @@
 //#define CONTROL_JA_DONT_CLEAR_ROLLJUMP //When you use a jump ability in the original, it clears the roll-jump flag
 //#define ICBINS1_AQUABOUNCE             //The improved aqua bouncing from INCBIS1
 
+#ifndef typeof
+#define typeof __typeof__
+#endif
+
 //Common macros
 #ifdef FIX_ROLL_YSHIFT
 	#define YSHIFT_ON_FLOOR(shift)	\

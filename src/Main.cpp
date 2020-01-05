@@ -32,12 +32,14 @@ int main(int argc, char *argv[])
 	if ((error = (Backend_InitCore() || InitializePath() || InitializeRender() || InitializeAudio() || InitializeInput())) == false)
 		error = EnterGameLoop();
 	
+	#ifndef EMSCRIPTEN
 	//End game sub-systems and backend core
 	QuitInput();
 	QuitAudio();
 	QuitRender();
 	QuitPath();
 	Backend_QuitCore();
+	#endif
 	
 	#ifdef ENABLE_NXLINK
 		//End NXLink

@@ -3,6 +3,10 @@
 #include "../Render.h"
 #include "../../GameConstants.h"
 
+#ifndef EMSCRIPTEN
+#define modf std::modf
+#endif
+
 //Window and renderer
 SDL_Window *window;
 SDL_Renderer *renderer;
@@ -75,7 +79,7 @@ bool Backend_InitRender(RENDERSPEC renderSpec, BACKEND_RENDER_FORMAT *outRenderF
 		return true;
 	
 	long double refreshIntegral;
-	long double refreshFractional = std::modf((long double)mode.refresh_rate / renderSpec.framerate, &refreshIntegral);
+	long double refreshFractional = modf((long double)mode.refresh_rate / renderSpec.framerate, &refreshIntegral);
 	vsyncMultiple = (unsigned int)refreshIntegral;
 	
 	//Check if vsync should be enabled

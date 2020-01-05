@@ -6,5 +6,10 @@ build/*.exe
 build/*.dll
 build/*.zip
 build/*.7z
+build/*.data
+build/*.js
+build/*.wasm
 build/debug
 build/release
+
+/.vscode

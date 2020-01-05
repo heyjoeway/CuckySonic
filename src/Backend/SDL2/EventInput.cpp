@@ -369,7 +369,9 @@ bool Backend_HandleEvents()
 						break;
 					case SDL_WINDOWEVENT_FOCUS_LOST: //Window unfocused
 						//Yield game until refocused
+						#ifndef EMSCRIPTEN
 						focusYield = true;
+						#endif
 						break;
 					default:
 						break;

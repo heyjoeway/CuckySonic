@@ -93,6 +93,61 @@ void InitializeScores()
 //Game loop
 GAMEMODE gGameMode;
 
+#include <emscripten.h>
+
+GAMEMODE gGameModePrev;
+
+bool IterateGameLoop(bool *bError) {
+	bool bExit = false;
+
+	if (gGameMode != gGameModePrev) {
+		switch (gGameMode)
+		{
+			case GAMEMODE_SPLASH:
+				bExit = GM_Splash_Init(bError);
+				break;
+			case GAMEMODE_TITLE:
+				bExit = GM_Title_Init(bError);
+				break;
+			// case GAMEMODE_DEMO:
+			// case GAMEMODE_GAME:
+			// 	bExit = GM_Game_Init(bError);
+			// 	break;
+			// case GAMEMODE_SPECIALSTAGE:
+			// 	bExit = GM_SpecialStage(&bError);
+			// 	break;
+		}
+		gGameModePrev = gGameMode;
+		if (bExit) return true;
+	}
+
+	switch (gGameMode)
+	{
+		case GAMEMODE_SPLASH:
+			bExit = GM_Splash_Loop(bError);
+			break;
+		case GAMEMODE_TITLE:
+			bExit = GM_Title_Loop(bError);
+			break;
+		case GAMEMODE_DEMO:
+		case GAMEMODE_GAME:
+			bExit = GM_Game_Loop(bError);
+			break;
+		// case GAMEMODE_SPECIALSTAGE:
+		// 	GM_SpecialStage_Loop();
+		// 	break;
+	}
+
+	return bExit;
+}
+
+#ifdef EMSCRIPTEN
+bool bErrorEm = false;
+void EmscriptenLoop() {
+	IterateGameLoop(&bErrorEm);
+}
+#endif
+
 bool EnterGameLoop()
 {
 	//Initialize game memory
@@ -105,33 +160,19 @@ bool EnterGameLoop()
 	gNextRingReward = RINGS_REWARD;
 	gLives = INITIAL_LIVES;
 	
-	//Run game code
+	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
+
+	// //Run game code
 	bool bExit = false;
 	bool bError = false;
 	
+	#ifndef EMSCRIPTEN
 	while (!(bExit || bError))
-	{
-		switch (gGameMode)
-		{
-			case GAMEMODE_SPLASH:
-				bExit = GM_Splash(&bError);
-				break;
-			case GAMEMODE_TITLE:
-				bExit = GM_Title(&bError);
-				break;
-			case GAMEMODE_DEMO:
-			case GAMEMODE_GAME:
-				bExit = GM_Game(&bError);
-				break;
-			case GAMEMODE_SPECIALSTAGE:
-				bExit = GM_SpecialStage(&bError);
-				break;
-			default:
-				bExit = true;
-				break;
-		}
+		bExit = IterateGameLoop(&bError);
 	}
+	#endif
 	
 	//End game loop
 	return bError;
 }
+

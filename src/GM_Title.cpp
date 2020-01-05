@@ -78,7 +78,7 @@ static const uint8_t scrollRipple[64] =
 	2, 0, 3, 2, 2, 3, 2, 2, 1, 3, 0, 0, 1, 0, 1, 3,
 };
 
-void TitleBackground(BACKGROUND *background, bool doScroll, int cameraX, int cameraY)
+void TitleBackground(BACKGROUND *gTitleBackground, bool doScroll, int cameraX, int cameraY)
 {
 	(void)doScroll;
 	(void)cameraY;
@@ -90,14 +90,14 @@ void TitleBackground(BACKGROUND *background, bool doScroll, int cameraX, int cam
 	{
 		paletteTimer = 0;
 		
-		COLOUR c9 = background->texture->loadedPalette->colour[0x9];
-		COLOUR cA = background->texture->loadedPalette->colour[0xA];
-		COLOUR cB = background->texture->loadedPalette->colour[0xB];
-		COLOUR cC = background->texture->loadedPalette->colour[0xC];
-		background->texture->loadedPalette->colour[0x9] = COLOUR(cC);
-		background->texture->loadedPalette->colour[0xA] = COLOUR(c9);
-		background->texture->loadedPalette->colour[0xB] = COLOUR(cA);
-		background->texture->loadedPalette->colour[0xC] = COLOUR(cB);
+		COLOUR c9 = gTitleBackground->texture->loadedPalette->colour[0x9];
+		COLOUR cA = gTitleBackground->texture->loadedPalette->colour[0xA];
+		COLOUR cB = gTitleBackground->texture->loadedPalette->colour[0xB];
+		COLOUR cC = gTitleBackground->texture->loadedPalette->colour[0xC];
+		gTitleBackground->texture->loadedPalette->colour[0x9] = COLOUR(cC);
+		gTitleBackground->texture->loadedPalette->colour[0xA] = COLOUR(c9);
+		gTitleBackground->texture->loadedPalette->colour[0xB] = COLOUR(cA);
+		gTitleBackground->texture->loadedPalette->colour[0xC] = COLOUR(cB);
 	}
 	//Get our scroll values
 	int scrollBG1 = cameraX / 24;
@@ -106,14 +106,14 @@ void TitleBackground(BACKGROUND *background, bool doScroll, int cameraX, int cam
 	
 	//Draw clouds
 	static unsigned int cloudScroll = 0;
-	(cloudScroll += 0x6) %= (background->texture->width * 0x10);
+	(cloudScroll += 0x6) %= (gTitleBackground->texture->width * 0x10);
 	
-	RECT clouds = {0,  0, background->texture->width,  32};
-	background->DrawStrip(&clouds, TITLELAYER_BACKGROUND,   0, -(scrollBG1 + cloudScroll / 0x10), -(scrollBG1 + cloudScroll / 0x10));
+	RECT clouds = {0,  0, gTitleBackground->texture->width,  32};
+	gTitleBackground->DrawStrip(&clouds, TITLELAYER_BACKGROUND,   0, -(scrollBG1 + cloudScroll / 0x10), -(scrollBG1 + cloudScroll / 0x10));
 	
 	//Draw sky and mountains
-	RECT mountains = {0,  32, background->texture->width,  128};
-	background->DrawStrip(&mountains, TITLELAYER_BACKGROUND,  32, -scrollBG2, -scrollBG2);
+	RECT mountains = {0,  32, gTitleBackground->texture->width,  128};
+	gTitleBackground->DrawStrip(&mountains, TITLELAYER_BACKGROUND,  32, -scrollBG2, -scrollBG2);
 	
 	//Draw ocean
 	static unsigned int rippleFrame = 0, rippleTimer = 4;
@@ -123,187 +123,225 @@ void TitleBackground(BACKGROUND *background, bool doScroll, int cameraX, int cam
 		rippleFrame++;
 	}
 	
-	RECT strip = {0, 160, background->texture->width, 1};
-	for (int i = 160; i < background->texture->height; i++)
+	RECT strip = {0, 160, gTitleBackground->texture->width, 1};
+	for (int i = 160; i < gTitleBackground->texture->height; i++)
 	{
-		int x = scrollBG2 + (scrollBG3 - scrollBG2) * (i - 160) / (background->texture->height - 160);
-		x += scrollRipple[(i + rippleFrame) % 64] * (i - 160) / ((background->texture->height - 160) / 2);
-		background->DrawStrip(&strip, TITLELAYER_BACKGROUND, strip.y++, -x, -x);
+		int x = scrollBG2 + (scrollBG3 - scrollBG2) * (i - 160) / (gTitleBackground->texture->height - 160);
+		x += scrollRipple[(i + rippleFrame) % 64] * (i - 160) / ((gTitleBackground->texture->height - 160) / 2);
+		gTitleBackground->DrawStrip(&strip, TITLELAYER_BACKGROUND, strip.y++, -x, -x);
 	}
 	
-	//Clear screen with sky behind background
+	//Clear screen with sky behind gTitleBackground
 	RECT backQuad = {0, 0, gRenderSpec.width, gRenderSpec.height};
-	gSoftwareBuffer->DrawQuad(TITLELAYER_BACKGROUND, &backQuad, &background->texture->loadedPalette->colour[0]);
+	gSoftwareBuffer->DrawQuad(TITLELAYER_BACKGROUND, &backQuad, &gTitleBackground->texture->loadedPalette->colour[0]);
+}
+
+// ============================================================================
+
+//Load our title sheet and gTitleBackground
+TEXTURE gTitleTexture("data/Title.bmp");
+BACKGROUND gTitleBackground("data/TitleBackground.bmp", &TitleBackground);
+
+//Emblem and banner positions
+int gTitleEmblemX;
+int gTitleEmblemY;
+
+int gTitleBannerX;
+int gTitleBannerY;
+
+//Title state
+int gTitleYShift;
+int gTitleYSpeed;
+int gTitleYGoal;
+int gTitleFrame;
+
+int gTitleBackgroundScroll, gTitleBackgroundScrollSpeed;
+
+//Sonic's animation and position
+int gTitleSonicTime;
+
+int gTitleSonicX;
+int gTitleSonicY;
+
+int gTitleSonicXsp;
+int gTitleSonicYsp;
+
+int gTitleSonicFrame;
+int gTitleSonicHandFrame;
+int gTitleSonicAnimTimer;
+
+//Selection state
+bool gTitleSelected;
+
+bool GM_Title_Loop(bool *bError)
+{
+	//Handle events
+	bool bExit = HandleEvents();
+	
+	//Fade in/out
+	bool bBreak = false;
+	
+	if (!gTitleSelected)
+	{
+		//Fade asset sheet and gTitleBackground palette in
+		PaletteFadeInFromBlack(gTitleTexture.loadedPalette);
+		PaletteFadeInFromBlack(gTitleBackground.texture->loadedPalette);
+	}
+	else
+	{
+		//Fade asset sheet and gTitleBackground palette out
+		bool res1 = PaletteFadeOutToBlack(gTitleTexture.loadedPalette);
+		bool res2 = PaletteFadeOutToBlack(gTitleBackground.texture->loadedPalette);
+		bBreak = res1 && res2;
+	}
+	
+	//Move title screen at beginning
+	if (gTitleYShift >= gTitleYGoal && gTitleYSpeed >= 0)
+	{
+		gTitleYSpeed /= -2;
+		gTitleYShift = gTitleYGoal;
+	}
+	else
+	{
+		gTitleYSpeed += 0x80;
+		gTitleYShift += gTitleYSpeed;
+	}
+	
+	//Render gTitleBackground
+	gTitleBackground.Draw(true, gTitleBackgroundScroll, 0);
+	
+	//Render title screen banner and emblem
+	gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &titleEmblem, TITLELAYER_EMBLEM, gTitleEmblemX, gTitleEmblemY + gTitleYShift / 0x100, false, false);
+	gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &titleBanner, TITLELAYER_BANNER, gTitleBannerX, gTitleBannerY + gTitleYShift / 0x100, false, false);
+	
+	if (gTitleSonicTime-- <= 0)
+	{
+		//Clear timer (so there's no underflow)
+		gTitleSonicTime = 0;
+		
+		//Move Sonic
+		if ((gTitleSonicX += gTitleSonicXsp) > (gRenderSpec.width / 2) * 0x100)
+			gTitleSonicX = (gRenderSpec.width / 2) * 0x100;
+		else
+			gTitleSonicXsp += 54;
+			
+		if ((gTitleSonicY += gTitleSonicYsp) < (gTitleBannerY - 70) * 0x100)
+			gTitleSonicY = (gTitleBannerY - 70) * 0x100;
+		else if ((gTitleSonicYsp += 24) > 0)
+			gTitleSonicYsp = 0;
+		
+		//Animate Sonic
+		if (gTitleSonicY < (gTitleBannerY - 40) * 0x100 && ++gTitleSonicAnimTimer >= 5)
+		{
+			//Reset timer and advance gTitleFrame
+			gTitleSonicAnimTimer = 0;
+			if (gTitleSonicFrame < 3)
+				gTitleSonicFrame++;
+		}
+		
+		//Render Sonic
+		RECT bodyRect = titleSonicBody[gTitleSonicFrame];
+		
+		const int midX = gTitleSonicX / 0x100;
+		const int topY = gTitleSonicY / 0x100;
+		const int bottomY = (gTitleSonicY / 0x100) + bodyRect.h;
+		const int clipY = gTitleBannerY + titleBannerClipY;
+		
+		if (topY < clipY)
+		{
+			if (bottomY > clipY)
+				bodyRect.h -= (bottomY - clipY);
+			gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &bodyRect, TITLELAYER_SONIC, midX - 40, topY + gTitleYShift / 0x100, false, false);
+		}
+		
+		//If animation is complete
+		if (gTitleSonicFrame >= 3)
+		{
+			//Draw Sonic's hand
+			int gTitleFrame = sonicHandAnim[gTitleSonicHandFrame];
+			gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &titleSonicHand[gTitleFrame].framerect, TITLELAYER_SONIC_HAND, midX + 20 - titleSonicHand[gTitleFrame].jointPos.x, topY + 72 - titleSonicHand[gTitleFrame].jointPos.y + gTitleYShift / 0x100, false, false);
+			
+			//Update gTitleFrame
+			if (gTitleSonicHandFrame + 1 < 14)
+			{
+				gTitleSonicHandFrame++;
+				gTitleBackgroundScrollSpeed++;
+			}
+			
+			//Scroll gTitleBackground
+			(gTitleBackgroundScroll += gTitleBackgroundScrollSpeed) %= gTitleBackground.texture->width * 96;
+		}
+	}
+	
+	//Handle selection and menus
+	if (gController[0].press.a || gController[0].press.b || gController[0].press.c || gController[0].press.start)
+		gTitleSelected = true;
+	
+	//Render our software buffer to the screen
+	if ((*bError = gSoftwareBuffer->RenderToScreen(nullptr)) == true)
+		bBreak = true;
+	
+	if (bExit || *bError)
+		bBreak = true;
+
+	if (bBreak) {
+		gGameLoadLevel = 0;
+		gGameLoadCharacter = 0;
+		gGameMode = GAMEMODE_GAME;
+		return false;
+	}
+	
+	//Increment gTitleFrame
+	gTitleFrame++;
+	return false;
 }
 
 //Gamemode code
-bool GM_Title(bool *bError)
+bool GM_Title_Init(bool *bError)
 {
-	//Load our title sheet and background
-	TEXTURE titleTexture("data/Title.bmp");
-	if (titleTexture.fail != nullptr)
-		return (*bError = !Error(titleTexture.fail));
+	//Load our title sheet and gTitleBackground
+	// TEXTURE gTitleTexture("data/Title.bmp");
+	if (gTitleTexture.fail != nullptr)
+		return (*bError = !Error(gTitleTexture.fail));
 	
-	BACKGROUND background("data/TitleBackground.bmp", &TitleBackground);
-	if (background.fail != nullptr)
-		return (*bError = !Error(background.fail));
+	// BACKGROUND gTitleBackground("data/TitleBackground.bmp", &TitleBackground);
+	if (gTitleBackground.fail != nullptr)
+		return (*bError = !Error(gTitleBackground.fail));
 	
 	//Emblem and banner positions
-	const int emblemX = (gRenderSpec.width - titleEmblem.w) / 2;
-	const int emblemY = (gRenderSpec.height - titleEmblem.h) / 2;
+	gTitleEmblemX = (gRenderSpec.width - titleEmblem.w) / 2;
+	gTitleEmblemY = (gRenderSpec.height - titleEmblem.h) / 2;
 	
-	const int bannerX = (gRenderSpec.width - titleBanner.w) / 2;
-	const int bannerY = emblemY + titleBannerJoin;
+	gTitleBannerX = (gRenderSpec.width - titleBanner.w) / 2;
+	gTitleBannerY = gTitleEmblemY + titleBannerJoin;
 	
 	//Title state
-	int titleYShift = gRenderSpec.height * 0x100;
-	int titleYSpeed = -0x107E;
-	int titleYGoal = 0;
-	int frame = 0;
+	gTitleYShift = gRenderSpec.height * 0x100;
+	gTitleYSpeed = -0x107E;
+	gTitleYGoal = 0;
+	gTitleFrame = 0;
 	
-	int backgroundScroll = 0, backgroundScrollSpeed = 0;
+	gTitleBackgroundScroll = 0, gTitleBackgroundScrollSpeed = 0;
 	
 	//Sonic's animation and position
-	int sonicTime = 54;
+	gTitleSonicTime = 54;
 	
-	int sonicX = (gRenderSpec.width / 2) * 0x100;
-	int sonicY = (bannerY + 16) * 0x100;
+	gTitleSonicX = (gRenderSpec.width / 2) * 0x100;
+	gTitleSonicY = (gTitleBannerY + 16) * 0x100;
 	
-	int sonicXsp = -0x400;
-	int sonicYsp = -0x400;
+	gTitleSonicXsp = -0x400;
+	gTitleSonicYsp = -0x400;
 	
-	int sonicFrame = 0;
-	int sonicHandFrame = 0;
-	int sonicAnimTimer = 0;
+	gTitleSonicFrame = 0;
+	gTitleSonicHandFrame = 0;
+	gTitleSonicAnimTimer = 0;
 	
 	//Selection state
-	bool selected = false;
+	gTitleSelected = false;
 	
 	//Make our palette black for fade-in
-	FillPaletteBlack(titleTexture.loadedPalette);
-	FillPaletteBlack(background.texture->loadedPalette);
-	
-	//Our loop
-	bool bExit = false;
-	
-	while (!(bExit || *bError))
-	{
-		//Handle events
-		bExit = HandleEvents();
-		
-		//Fade in/out
-		bool bBreak = false;
-		
-		if (!selected)
-		{
-			//Fade asset sheet and background palette in
-			PaletteFadeInFromBlack(titleTexture.loadedPalette);
-			PaletteFadeInFromBlack(background.texture->loadedPalette);
-		}
-		else
-		{
-			//Fade asset sheet and background palette out
-			bool res1 = PaletteFadeOutToBlack(titleTexture.loadedPalette);
-			bool res2 = PaletteFadeOutToBlack(background.texture->loadedPalette);
-			bBreak = res1 && res2;
-		}
-		
-		//Move title screen at beginning
-		if (titleYShift >= titleYGoal && titleYSpeed >= 0)
-		{
-			titleYSpeed /= -2;
-			titleYShift = titleYGoal;
-		}
-		else
-		{
-			titleYSpeed += 0x80;
-			titleYShift += titleYSpeed;
-		}
-		
-		//Render background
-		background.Draw(true, backgroundScroll, 0);
-		
-		//Render title screen banner and emblem
-		gSoftwareBuffer->DrawTexture(&titleTexture, titleTexture.loadedPalette, &titleEmblem, TITLELAYER_EMBLEM, emblemX, emblemY + titleYShift / 0x100, false, false);
-		gSoftwareBuffer->DrawTexture(&titleTexture, titleTexture.loadedPalette, &titleBanner, TITLELAYER_BANNER, bannerX, bannerY + titleYShift / 0x100, false, false);
-		
-		if (sonicTime-- <= 0)
-		{
-			//Clear timer (so there's no underflow)
-			sonicTime = 0;
-			
-			//Move Sonic
-			if ((sonicX += sonicXsp) > (gRenderSpec.width / 2) * 0x100)
-				sonicX = (gRenderSpec.width / 2) * 0x100;
-			else
-				sonicXsp += 54;
-				
-			if ((sonicY += sonicYsp) < (bannerY - 70) * 0x100)
-				sonicY = (bannerY - 70) * 0x100;
-			else if ((sonicYsp += 24) > 0)
-				sonicYsp = 0;
-			
-			//Animate Sonic
-			if (sonicY < (bannerY - 40) * 0x100 && ++sonicAnimTimer >= 5)
-			{
-				//Reset timer and advance frame
-				sonicAnimTimer = 0;
-				if (sonicFrame < 3)
-					sonicFrame++;
-			}
-			
-			//Render Sonic
-			RECT bodyRect = titleSonicBody[sonicFrame];
-			
-			const int midX = sonicX / 0x100;
-			const int topY = sonicY / 0x100;
-			const int bottomY = (sonicY / 0x100) + bodyRect.h;
-			const int clipY = bannerY + titleBannerClipY;
-			
-			if (topY < clipY)
-			{
-				if (bottomY > clipY)
-					bodyRect.h -= (bottomY - clipY);
-				gSoftwareBuffer->DrawTexture(&titleTexture, titleTexture.loadedPalette, &bodyRect, TITLELAYER_SONIC, midX - 40, topY + titleYShift / 0x100, false, false);
-			}
-			
-			//If animation is complete
-			if (sonicFrame >= 3)
-			{
-				//Draw Sonic's hand
-				int frame = sonicHandAnim[sonicHandFrame];
-				gSoftwareBuffer->DrawTexture(&titleTexture, titleTexture.loadedPalette, &titleSonicHand[frame].framerect, TITLELAYER_SONIC_HAND, midX + 20 - titleSonicHand[frame].jointPos.x, topY + 72 - titleSonicHand[frame].jointPos.y + titleYShift / 0x100, false, false);
-				
-				//Update frame
-				if (sonicHandFrame + 1 < 14)
-				{
-					sonicHandFrame++;
-					backgroundScrollSpeed++;
-				}
-				
-				//Scroll background
-				(backgroundScroll += backgroundScrollSpeed) %= background.texture->width * 96;
-			}
-		}
-		
-		//Handle selection and menus
-		if (gController[0].press.a || gController[0].press.b || gController[0].press.c || gController[0].press.start)
-			selected = true;
-		
-		//Render our software buffer to the screen
-		if ((*bError = gSoftwareBuffer->RenderToScreen(nullptr)) == true)
-			break;
-		
-		if (bBreak)
-			break;
-		
-		//Increment frame
-		frame++;
-	}
-	
-	//Continue to game
-	gGameLoadLevel = 0;
-	gGameLoadCharacter = 0;
-	gGameMode = GAMEMODE_GAME;
-	return bExit;
+	FillPaletteBlack(gTitleTexture.loadedPalette);
+	FillPaletteBlack(gTitleBackground.texture->loadedPalette);
+
+	return false;
 }

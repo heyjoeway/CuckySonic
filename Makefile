@@ -33,6 +33,18 @@ ifeq ($(WINDOWS), 1)
 	endif
 endif
 
+#Emscripten Compilation
+ifeq ($(EMSCRIPTEN), 1)
+	CXX = em++
+	PKGCONFIG = :
+	CXXFLAGS = -Wall -Wextra -pedantic -DEMSCRIPTEN -std=c++17 -s ALLOW_MEMORY_GROWTH=1 -s USE_SDL=2 --preload-file build/data@/data
+	ifeq ($(RELEASE), 1)
+		CXXFLAGS += -flto 
+	else
+		CXXFLAGS += -ggdb3 -DDEBUG
+	endif
+endif
+
 #Nintendo Switch compilation
 ifeq ($(SWITCH), 1)
 	ifeq ($(strip $(DEVKITPRO)),)
@@ -158,6 +170,16 @@ all: build/$(FILENAME).nro
 build/$(FILENAME).nro: build/$(FILENAME)
 	@elf2nro $< $@ $(NROFLAGS)
 	@echo built ... $(notdir $@)
+else ifeq ($(EMSCRIPTEN), 1)
+#Emscripten compilation
+all: build/$(FILENAME).js
+
+build/$(FILENAME).js: $(OBJECTS)
+	@mkdir -p $(@D)
+	@echo Linking...
+	@$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
+	@echo Finished linking $@
+
 else
 #Regular compilation
 all: build/$(FILENAME)

@@ -25,7 +25,12 @@ static const char **characterSetList[] = {
 	knucklesOnly,
 };
 
-bool GM_Game(bool *bError)
+void GM_Game_Exit() {
+	delete gLevel;
+	gLevel = nullptr;
+}
+
+bool GM_Game_Init(bool *bError)
 {
 	//Load level with characters given
 	gLevel = new LEVEL(gGameLoadLevel, characterSetList[gGameLoadCharacter]);
@@ -34,52 +39,65 @@ bool GM_Game(bool *bError)
 	
 	//Fade level from black
 	gLevel->SetFade(true, false);
+
+	return false;
+}
+
+bool GM_Game_Loop(bool *bError) {
+	//Handle events
+	bool bExit = HandleEvents();
 	
-	//Our loop
-	bool bExit = false;
-	
-	while (!(bExit || *bError))
-	{
-		//Handle events
-		bExit = HandleEvents();
-		
-		//Update level
-		if ((*bError = gLevel->Update()) == true)
-			break;
-		
-		//Handle level fading
-		bool breakThisState = false;
-		
-		if (gLevel->fading)
-		{
-			if (gLevel->isFadingIn)
-			{
-				gLevel->fading = !gLevel->UpdateFade();
-			}
-			else
-			{
-				//Fade out and enter next game state
-				if (gLevel->UpdateFade())
-				{
-					gGameMode = gLevel->specialFade ? GAMEMODE_SPECIALSTAGE : (gGameMode == GAMEMODE_DEMO ? GAMEMODE_SPLASH : GAMEMODE_GAME);
-					breakThisState = true;
-				}
-			}
-		}
-		
-		//Draw level to the screen
-		gLevel->Draw();
-		
-		//Render our software buffer to the screen
-		if ((*bError = gSoftwareBuffer->RenderToScreen(&gLevel->background->texture->loadedPalette->colour[0])) == true)
-			break;
-		
-		//Go to next state if set to break this state
-		if (breakThisState)
-			break;
+	if (gLevel == nullptr) {
+		GM_Game_Init(bError);
+		return false;
+	}
+
+	//Update level
+	if ((*bError = gLevel->Update()) == true) {
+		GM_Game_Exit();
+		return bExit;
 	}
 	
-	//Unload level and exit
-	delete gLevel;
+	//Handle level fading
+	bool breakThisState = false;
+	
+	if (gLevel->fading)
+	{
+		if (gLevel->isFadingIn)
+		{
+			gLevel->fading = !gLevel->UpdateFade();
+		}
+		else
+		{
+			//Fade out and enter next game state
+			if (gLevel->UpdateFade())
+			{
+				gGameMode = gLevel->specialFade ? GAMEMODE_SPECIALSTAGE : (gGameMode == GAMEMODE_DEMO ? GAMEMODE_SPLASH : GAMEMODE_GAME);
+				breakThisState = true;
+			}
+		}
+	}
+	
+	//Draw level to the screen
+	gLevel->Draw();
+	
+	//Render our software buffer to the screen
+	// if ((*bError = 
+	gSoftwareBuffer->RenderToScreen(&gLevel->background->texture->loadedPalette->colour[0]);//) == true) {
+	// 	GM_Game_Exit();
+	// 	return bExit;
+	// }
+
+	// if (bExit || *bError) {
+	// 	GM_Game_Exit();
+	// 	return bExit;
+	// }
+	
+	// //Go to next state if set to break this state
+	if (breakThisState) {
+		GM_Game_Exit();
+		return bExit;
+	}
+
 	return bExit;
 }

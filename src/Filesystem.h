@@ -28,7 +28,7 @@ class FS_FILE
 		~FS_FILE()
 		{
 			//Close our opened file
-			fclose(fp);
+			if (fp != nullptr) fclose(fp);
 		}
 		
 		//File open function
