@@ -153,7 +153,7 @@ bool EnterGameLoop()
 	bool bError = false;
 	
 	#ifndef EMSCRIPTEN
-	while (!(bExit || bError))
+	while (!(bExit || bError)) {
 		bExit = IterateGameLoop(&bError);
 	}
 	#endif
