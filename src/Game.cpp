@@ -1,7 +1,10 @@
 #include "Game.h"
 #include "Log.h"
 #include "Error.h"
-#include "GM.h"
+
+#include "GM_Splash.h"
+#include "GM_Title.h"
+#include "GM_Game.h"
 
 //Debug bool
 bool gDebugEnabled = false;
@@ -93,45 +96,26 @@ void InitializeScores()
 //Game loop
 GAMEMODE gGameMode;
 
+#ifdef EMSCRIPTEN
 #include <emscripten.h>
+#endif
 
 GAMEMODE gGameModePrev;
 
 bool IterateGameLoop(bool *bError) {
 	bool bExit = false;
 
-	if (gGameMode != gGameModePrev) {
-		switch (gGameMode)
-		{
-			case GAMEMODE_SPLASH:
-				bExit = GM_Splash_Init(bError);
-				break;
-			case GAMEMODE_TITLE:
-				bExit = GM_Title_Init(bError);
-				break;
-			// case GAMEMODE_DEMO:
-			// case GAMEMODE_GAME:
-			// 	bExit = GM_Game_Init(bError);
-			// 	break;
-			// case GAMEMODE_SPECIALSTAGE:
-			// 	bExit = GM_SpecialStage(&bError);
-			// 	break;
-		}
-		gGameModePrev = gGameMode;
-		if (bExit) return true;
-	}
-
 	switch (gGameMode)
 	{
 		case GAMEMODE_SPLASH:
-			bExit = GM_Splash_Loop(bError);
+			bExit = GM_Splash_Inst.Loop(bError);
 			break;
 		case GAMEMODE_TITLE:
-			bExit = GM_Title_Loop(bError);
+			bExit = GM_Title_Inst.Loop(bError);
 			break;
 		case GAMEMODE_DEMO:
 		case GAMEMODE_GAME:
-			bExit = GM_Game_Loop(bError);
+			bExit = GM_Game_Inst.Loop(bError);
 			break;
 		// case GAMEMODE_SPECIALSTAGE:
 		// 	GM_SpecialStage_Loop();
@@ -160,7 +144,9 @@ bool EnterGameLoop()
 	gNextRingReward = RINGS_REWARD;
 	gLives = INITIAL_LIVES;
 	
+	#ifdef EMSCRIPTEN
 	emscripten_set_main_loop(EmscriptenLoop, 0, 1);
+	#endif
 
 	// //Run game code
 	bool bExit = false;

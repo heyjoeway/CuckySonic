@@ -1,3 +1,5 @@
+#include "GM_Game.h"
+
 #include "Game.h"
 #include "GameConstants.h"
 #include "Error.h"
@@ -6,12 +8,6 @@
 #include "Input.h"
 #include "Render.h"
 #include "Fade.h"
-#include "Level.h"
-
-LEVEL *gLevel;
-
-int gGameLoadLevel = 0;
-int gGameLoadCharacter = 0;
 
 static const char *sonicOnly[] =		{"data/Sonic/Sonic", nullptr};
 static const char *sonicAndTails[] =	{"data/Sonic/Sonic", "data/Tails/Tails", nullptr};
@@ -25,12 +21,11 @@ static const char **characterSetList[] = {
 	knucklesOnly,
 };
 
-void GM_Game_Exit() {
-	delete gLevel;
-	gLevel = nullptr;
-}
+int gGameLoadLevel = 0;
+int gGameLoadCharacter = 0;
+LEVEL *gLevel; // readiness of GM_Game implied by gLevel being nullptr
 
-bool GM_Game_Init(bool *bError)
+bool GM_Game::Init(bool *bError)
 {
 	//Load level with characters given
 	gLevel = new LEVEL(gGameLoadLevel, characterSetList[gGameLoadCharacter]);
@@ -40,21 +35,22 @@ bool GM_Game_Init(bool *bError)
 	//Fade level from black
 	gLevel->SetFade(true, false);
 
-	return false;
+	return 0;
 }
 
-bool GM_Game_Loop(bool *bError) {
+bool GM_Game::Loop(bool *bError)
+{
 	//Handle events
 	bool bExit = HandleEvents();
 	
 	if (gLevel == nullptr) {
-		GM_Game_Init(bError);
+		Init(bError);
 		return false;
 	}
 
 	//Update level
 	if ((*bError = gLevel->Update()) == true) {
-		GM_Game_Exit();
+		Exit(bError);
 		return bExit;
 	}
 	
@@ -82,22 +78,31 @@ bool GM_Game_Loop(bool *bError) {
 	gLevel->Draw();
 	
 	//Render our software buffer to the screen
-	// if ((*bError = 
-	gSoftwareBuffer->RenderToScreen(&gLevel->background->texture->loadedPalette->colour[0]);//) == true) {
-	// 	GM_Game_Exit();
-	// 	return bExit;
-	// }
+	if ((*bError = gSoftwareBuffer->RenderToScreen(&gLevel->background->texture->loadedPalette->colour[0])) == true) {
+		Exit(bError);
+		return bExit;
+	}
 
-	// if (bExit || *bError) {
-	// 	GM_Game_Exit();
-	// 	return bExit;
-	// }
+	if (bExit || *bError) {
+		Exit(bError);
+		return bExit;
+	}
 	
 	// //Go to next state if set to break this state
 	if (breakThisState) {
-		GM_Game_Exit();
+		Exit(bError);
 		return bExit;
 	}
 
 	return bExit;
 }
+
+bool GM_Game::Exit(bool *bError)
+{
+	delete gLevel;
+	gLevel = nullptr;
+
+	return 0;
+}
+
+GM_Game GM_Game_Inst;

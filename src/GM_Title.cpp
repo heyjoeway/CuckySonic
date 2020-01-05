@@ -1,3 +1,5 @@
+#include "GM_Title.h"
+
 #include <math.h>
 
 #include "Game.h"
@@ -5,12 +7,10 @@
 #include "Error.h"
 #include "Log.h"
 #include "Event.h"
-#include "Render.h"
 #include "Fade.h"
 #include "MathUtil.h"
 #include "Input.h"
 #include "Audio.h"
-#include "Background.h"
 
 //Title constants
 enum TITLE_LAYERS
@@ -138,43 +138,62 @@ void TitleBackground(BACKGROUND *gTitleBackground, bool doScroll, int cameraX, i
 
 // ============================================================================
 
-//Load our title sheet and gTitleBackground
-TEXTURE gTitleTexture("data/Title.bmp");
-BACKGROUND gTitleBackground("data/TitleBackground.bmp", &TitleBackground);
-
-//Emblem and banner positions
-int gTitleEmblemX;
-int gTitleEmblemY;
-
-int gTitleBannerX;
-int gTitleBannerY;
-
-//Title state
-int gTitleYShift;
-int gTitleYSpeed;
-int gTitleYGoal;
-int gTitleFrame;
-
-int gTitleBackgroundScroll, gTitleBackgroundScrollSpeed;
-
-//Sonic's animation and position
-int gTitleSonicTime;
-
-int gTitleSonicX;
-int gTitleSonicY;
-
-int gTitleSonicXsp;
-int gTitleSonicYsp;
-
-int gTitleSonicFrame;
-int gTitleSonicHandFrame;
-int gTitleSonicAnimTimer;
-
-//Selection state
-bool gTitleSelected;
-
-bool GM_Title_Loop(bool *bError)
+//Gamemode code
+bool GM_Title::Init(bool *bError)
 {
+	//Load our title sheet and gTitleBackground
+	gTitleTexture = new TEXTURE("data/Title.bmp");
+	if (gTitleTexture->fail != nullptr)
+		return (*bError = !Error(gTitleTexture->fail));
+	
+	gTitleBackground = new BACKGROUND("data/TitleBackground.bmp", &TitleBackground);
+	if (gTitleBackground->fail != nullptr)
+		return (*bError = !Error(gTitleBackground->fail));
+	
+	//Emblem and banner positions
+	gTitleEmblemX = (gRenderSpec.width - titleEmblem.w) / 2;
+	gTitleEmblemY = (gRenderSpec.height - titleEmblem.h) / 2;
+	
+	gTitleBannerX = (gRenderSpec.width - titleBanner.w) / 2;
+	gTitleBannerY = gTitleEmblemY + titleBannerJoin;
+	
+	//Title state
+	gTitleYShift = gRenderSpec.height * 0x100;
+	gTitleYSpeed = -0x107E;
+	gTitleYGoal = 0;
+	gTitleFrame = 0;
+	
+	gTitleBackgroundScroll = 0, gTitleBackgroundScrollSpeed = 0;
+	
+	//Sonic's animation and position
+	gTitleSonicTime = 54;
+	
+	gTitleSonicX = (gRenderSpec.width / 2) * 0x100;
+	gTitleSonicY = (gTitleBannerY + 16) * 0x100;
+	
+	gTitleSonicXsp = -0x400;
+	gTitleSonicYsp = -0x400;
+	
+	gTitleSonicFrame = 0;
+	gTitleSonicHandFrame = 0;
+	gTitleSonicAnimTimer = 0;
+	
+	//Selection state
+	gTitleSelected = false;
+	
+	//Make our palette black for fade-in
+	FillPaletteBlack(gTitleTexture->loadedPalette);
+	FillPaletteBlack(gTitleBackground->texture->loadedPalette);
+
+	ready = true;
+
+	return false;
+}
+
+bool GM_Title::Loop(bool *bError)
+{
+	if (!ready) Init(bError);
+
 	//Handle events
 	bool bExit = HandleEvents();
 	
@@ -184,14 +203,14 @@ bool GM_Title_Loop(bool *bError)
 	if (!gTitleSelected)
 	{
 		//Fade asset sheet and gTitleBackground palette in
-		PaletteFadeInFromBlack(gTitleTexture.loadedPalette);
-		PaletteFadeInFromBlack(gTitleBackground.texture->loadedPalette);
+		PaletteFadeInFromBlack(gTitleTexture->loadedPalette);
+		PaletteFadeInFromBlack(gTitleBackground->texture->loadedPalette);
 	}
 	else
 	{
 		//Fade asset sheet and gTitleBackground palette out
-		bool res1 = PaletteFadeOutToBlack(gTitleTexture.loadedPalette);
-		bool res2 = PaletteFadeOutToBlack(gTitleBackground.texture->loadedPalette);
+		bool res1 = PaletteFadeOutToBlack(gTitleTexture->loadedPalette);
+		bool res2 = PaletteFadeOutToBlack(gTitleBackground->texture->loadedPalette);
 		bBreak = res1 && res2;
 	}
 	
@@ -208,11 +227,11 @@ bool GM_Title_Loop(bool *bError)
 	}
 	
 	//Render gTitleBackground
-	gTitleBackground.Draw(true, gTitleBackgroundScroll, 0);
+	gTitleBackground->Draw(true, gTitleBackgroundScroll, 0);
 	
 	//Render title screen banner and emblem
-	gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &titleEmblem, TITLELAYER_EMBLEM, gTitleEmblemX, gTitleEmblemY + gTitleYShift / 0x100, false, false);
-	gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &titleBanner, TITLELAYER_BANNER, gTitleBannerX, gTitleBannerY + gTitleYShift / 0x100, false, false);
+	gSoftwareBuffer->DrawTexture(gTitleTexture, gTitleTexture->loadedPalette, &titleEmblem, TITLELAYER_EMBLEM, gTitleEmblemX, gTitleEmblemY + gTitleYShift / 0x100, false, false);
+	gSoftwareBuffer->DrawTexture(gTitleTexture, gTitleTexture->loadedPalette, &titleBanner, TITLELAYER_BANNER, gTitleBannerX, gTitleBannerY + gTitleYShift / 0x100, false, false);
 	
 	if (gTitleSonicTime-- <= 0)
 	{
@@ -251,7 +270,7 @@ bool GM_Title_Loop(bool *bError)
 		{
 			if (bottomY > clipY)
 				bodyRect.h -= (bottomY - clipY);
-			gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &bodyRect, TITLELAYER_SONIC, midX - 40, topY + gTitleYShift / 0x100, false, false);
+			gSoftwareBuffer->DrawTexture(gTitleTexture, gTitleTexture->loadedPalette, &bodyRect, TITLELAYER_SONIC, midX - 40, topY + gTitleYShift / 0x100, false, false);
 		}
 		
 		//If animation is complete
@@ -259,7 +278,7 @@ bool GM_Title_Loop(bool *bError)
 		{
 			//Draw Sonic's hand
 			int gTitleFrame = sonicHandAnim[gTitleSonicHandFrame];
-			gSoftwareBuffer->DrawTexture(&gTitleTexture, gTitleTexture.loadedPalette, &titleSonicHand[gTitleFrame].framerect, TITLELAYER_SONIC_HAND, midX + 20 - titleSonicHand[gTitleFrame].jointPos.x, topY + 72 - titleSonicHand[gTitleFrame].jointPos.y + gTitleYShift / 0x100, false, false);
+			gSoftwareBuffer->DrawTexture(gTitleTexture, gTitleTexture->loadedPalette, &titleSonicHand[gTitleFrame].framerect, TITLELAYER_SONIC_HAND, midX + 20 - titleSonicHand[gTitleFrame].jointPos.x, topY + 72 - titleSonicHand[gTitleFrame].jointPos.y + gTitleYShift / 0x100, false, false);
 			
 			//Update gTitleFrame
 			if (gTitleSonicHandFrame + 1 < 14)
@@ -269,7 +288,7 @@ bool GM_Title_Loop(bool *bError)
 			}
 			
 			//Scroll gTitleBackground
-			(gTitleBackgroundScroll += gTitleBackgroundScrollSpeed) %= gTitleBackground.texture->width * 96;
+			(gTitleBackgroundScroll += gTitleBackgroundScrollSpeed) %= gTitleBackground->texture->width * 96;
 		}
 	}
 	
@@ -285,9 +304,7 @@ bool GM_Title_Loop(bool *bError)
 		bBreak = true;
 
 	if (bBreak) {
-		gGameLoadLevel = 0;
-		gGameLoadCharacter = 0;
-		gGameMode = GAMEMODE_GAME;
+		Exit(bError);
 		return false;
 	}
 	
@@ -296,52 +313,13 @@ bool GM_Title_Loop(bool *bError)
 	return false;
 }
 
-//Gamemode code
-bool GM_Title_Init(bool *bError)
+bool GM_Title::Exit(bool *bError)
 {
-	//Load our title sheet and gTitleBackground
-	// TEXTURE gTitleTexture("data/Title.bmp");
-	if (gTitleTexture.fail != nullptr)
-		return (*bError = !Error(gTitleTexture.fail));
-	
-	// BACKGROUND gTitleBackground("data/TitleBackground.bmp", &TitleBackground);
-	if (gTitleBackground.fail != nullptr)
-		return (*bError = !Error(gTitleBackground.fail));
-	
-	//Emblem and banner positions
-	gTitleEmblemX = (gRenderSpec.width - titleEmblem.w) / 2;
-	gTitleEmblemY = (gRenderSpec.height - titleEmblem.h) / 2;
-	
-	gTitleBannerX = (gRenderSpec.width - titleBanner.w) / 2;
-	gTitleBannerY = gTitleEmblemY + titleBannerJoin;
-	
-	//Title state
-	gTitleYShift = gRenderSpec.height * 0x100;
-	gTitleYSpeed = -0x107E;
-	gTitleYGoal = 0;
-	gTitleFrame = 0;
-	
-	gTitleBackgroundScroll = 0, gTitleBackgroundScrollSpeed = 0;
-	
-	//Sonic's animation and position
-	gTitleSonicTime = 54;
-	
-	gTitleSonicX = (gRenderSpec.width / 2) * 0x100;
-	gTitleSonicY = (gTitleBannerY + 16) * 0x100;
-	
-	gTitleSonicXsp = -0x400;
-	gTitleSonicYsp = -0x400;
-	
-	gTitleSonicFrame = 0;
-	gTitleSonicHandFrame = 0;
-	gTitleSonicAnimTimer = 0;
-	
-	//Selection state
-	gTitleSelected = false;
-	
-	//Make our palette black for fade-in
-	FillPaletteBlack(gTitleTexture.loadedPalette);
-	FillPaletteBlack(gTitleBackground.texture->loadedPalette);
-
+	ready = false;
+	gGameLoadLevel = 0;
+	gGameLoadCharacter = 0;
+	gGameMode = GAMEMODE_GAME;
 	return false;
 }
+
+GM_Title GM_Title_Inst;

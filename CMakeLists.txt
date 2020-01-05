@@ -39,7 +39,6 @@ add_executable(CuckySonic
 	src/Game.cpp
 	src/Game.h
 	src/GameConstants.h
-	src/GM.h
 	src/GM_Game.cpp
 	src/GM_SpecialStage.cpp
 	src/GM_Splash.cpp
